@@ -1155,16 +1155,16 @@
 
         <!-- Sync Settings Accordion (bottom) -->
         <div class="settings-panel" id="settings-panel">
-            <button class="settings-toggle" id="settings-toggle">⚙️ スプレッドシート(GAS)同期設定</button>
+            <button class="settings-toggle" id="settings-toggle">⚙️ Supabase クラウド同期設定</button>
             <div class="settings-content">
                 <div class="form-grid">
                     <div class="form-group">
-                        <label for="gas-url">GAS ウェブアプリのURL</label>
-                        <input type="url" id="gas-url" placeholder="https://script.google.com/macros/s/.../exec">
+                        <label for="gas-url">Supabase Project URL</label>
+                        <input type="url" id="gas-url" placeholder="https://xxxxxxxx.supabase.co">
                     </div>
                     <div class="form-group">
-                        <label for="gas-password">認証パスワード</label>
-                        <input type="password" id="gas-password" placeholder="GASに設定したパスワード">
+                        <label for="gas-password">Supabase Anon Key (public)</label>
+                        <input type="password" id="gas-password" placeholder="eyJhbGciOi...">
                     </div>
                 </div>
                 <div class="settings-actions">
@@ -1172,7 +1172,7 @@
                     <button class="btn" id="btn-import-json" title="JSONファイルから読書記録データを復元します">📥 データ復元</button>
                     <input type="file" id="file-import" accept=".json" style="display: none;">
                     <button class="btn" id="btn-test-sync">🔌 接続テスト</button>
-                    <button class="btn btn-accent" id="btn-save-settings">💾 設定保存 & 同期</button>
+                    <button class="btn btn-accent" id="btn-save-settings">💾 設定保存</button>
                 </div>
             </div>
         </div>
@@ -2021,50 +2021,31 @@
 
         // --- CRUD Logic & Cloud Syncing ---
         
-        // Post full books array to GAS
-        async function syncToCloud() {
-            if (!syncSettings.url) return true;
+        // Post        // Sync helper (Supabase is real-time, upsert local books if needed)
+        async function syncWithGAS() {
+            if (!supabaseClient) {
+                initSupabase();
+                if (!supabaseClient) return true;
+            }
 
-            setLoader(true, "クラウドデータを同期中...");
             try {
-                const payload = {
-                    action: 'sync',
-                    password: syncSettings.password,
-                    books: JSON.stringify(books)
-                };
-
-                const response = await fetch(syncSettings.url, {
-                    method: 'POST',
-                    mode: 'cors',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                    },
-                    body: new URLSearchParams(payload).toString()
-                });
-
-                if (response.ok) {
-                    const result = await response.json();
-                    if (result.status === 'success') {
-                        showToast("クラウドと同期が完了しました", 'success');
-                        setLoader(false);
-                        return true;
-                    } else {
-                        showToast("同期失敗: " + (result.message || '認証エラー'), 'error');
-                        setLoader(false);
+                if (books.length > 0) {
+                    const { error } = await supabaseClient.from('books').upsert(books);
+                    if (error) {
+                        console.error("Supabase upsert error", error);
+                        showToast("同期失敗: " + error.message, 'error');
                         return false;
                     }
-                } else {
-                    showToast("同期通信エラーが発生しました", 'error');
-                    setLoader(false);
-                    return false;
                 }
+                showToast("Supabaseと同期完了", 'success');
+                return true;
             } catch (e) {
-                console.error("Cloud sync failed", e);
-                showToast("GAS接続エラー。設定を確認してください。", 'error');
-                setLoader(false);
+                console.error("Supabase sync error", e);
+                showToast("Supabase通信エラー", 'error');
                 return false;
             }
         }
+        const syncToCloud = syncWithGAS;
 
         // Pull full books array from Supabase (silent option for background sync)
         async function pullFromCloud(silent = false) {
@@ -2175,14 +2156,14 @@
             if (confirm(`「${b.title}」を削除しますか？`)) {
                 books = books.filter(item => item.id !== id);
                 saveLocalData();
-                const syncSuccess = await syncToCloud();
-                if (syncSuccess) {
-                    closeEditModal();
-                    renderBooks();
-                    renderGenreTags();
-                    renderChart();
-                    showToast("削除しました", 'success');
+                if (supabaseClient) {
+                    await supabaseClient.from('books').delete().eq('id', id);
                 }
+                closeEditModal();
+                renderBooks();
+                renderGenreTags();
+                renderChart();
+                showToast("削除しました", 'success');
             }
         }
 
@@ -2314,10 +2295,11 @@
                 syncSettings.url = url;
                 syncSettings.password = pw;
 
+                initSupabase();
                 updateSyncStatus();
                 settingsPanel.classList.remove('open');
 
-                if (url) {
+                if (url && pw) {
                     await pullFromCloud();
                 } else {
                     showToast("設定を保存しました(ローカルモード)");
@@ -2326,30 +2308,30 @@
 
             document.getElementById('btn-test-sync').addEventListener('click', async () => {
                 const url = document.getElementById('gas-url').value.trim();
-                const pw = document.getElementById('gas-password').value.trim();
+                const key = document.getElementById('gas-password').value.trim();
 
-                if (!url) {
-                    showToast("GASのURLを入力してください", 'error');
+                if (!url || !key) {
+                    showToast("Supabase URLとAnon Keyを入力してください", 'error');
                     return;
                 }
 
-                setLoader(true, "GASサーバー接続テスト中...");
+                setLoader(true, "Supabase 接続テスト中...");
                 try {
-                    const params = new URLSearchParams({ action: 'ping', password: pw });
-                    const res = await fetch(`${url}?${params.toString()}`);
-                    if (res.ok) {
-                        const json = await res.json();
-                        if (json.status === 'success') {
-                            showToast("接続テスト成功！正常に通信できます", 'success');
-                        } else {
-                            showToast("認証エラー: パスワードを確認してください", 'error');
-                        }
+                    if (!window.supabase) {
+                        showToast("Supabase SDKが読み込まれていません", 'error');
+                        setLoader(false);
+                        return;
+                    }
+                    const testClient = window.supabase.createClient(url, key);
+                    const { data, error } = await testClient.from('books').select('id').limit(1);
+                    if (!error) {
+                        showToast("接続テスト成功！Supabaseと正常に通信できました", 'success');
                     } else {
-                        showToast("HTTP通信エラーが発生しました", 'error');
+                        showToast("接続失敗: " + error.message, 'error');
                     }
                 } catch (e) {
                     console.error(e);
-                    showToast("接続に失敗しました。CORS設定などを確認してください。", 'error');
+                    showToast("接続失敗: URLまたはキーの形式を確認してください", 'error');
                 }
                 setLoader(false);
             });
