@@ -16,19 +16,21 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         :root {
-            --bg-color: #050506;
-            --panel-bg: #111115;
-            --card-bg: #181820;
-            --card-hover-bg: #22222d;
-            --border-color: #262630;
-            --text-primary: #f3f4f6;
-            --text-secondary: #9ca3af;
-            --text-muted: #6b7280;
-            --accent-color: #00f0ff;
-            --accent-hover: #00c8d6;
+            --bg-color: #0b0c10;
+            --panel-bg: #13151f;
+            --card-bg: #181b28;
+            --card-hover-bg: #202436;
+            --border-color: rgba(255, 255, 255, 0.08);
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent-color: #6366f1;
+            --accent-hover: #4f46e5;
+            --accent-gradient: linear-gradient(135deg, #6366f1 0%, #818cf8 100%);
             --danger-color: #ef4444;
             --danger-hover: #dc2626;
             --success-color: #10b981;
+            --star-gold: #f59e0b;
             --font-outfit: 'Outfit', 'Inter', 'Noto Sans JP', sans-serif;
         }
 
@@ -154,7 +156,7 @@
 
         .btn-accent {
             background-color: var(--accent-color);
-            color: #050506;
+            color: #ffffff;
             border-color: var(--accent-color);
             font-weight: 600;
         }
@@ -162,7 +164,7 @@
         .btn-accent:hover {
             background-color: var(--accent-hover);
             border-color: var(--accent-hover);
-            color: #050506;
+            color: #ffffff;
         }
 
         .btn-danger {
@@ -551,9 +553,9 @@
         }
 
         .status-badge.read {
-            background-color: rgba(0, 240, 255, 0.15);
-            color: var(--accent-color);
-            border: 1px solid rgba(0, 240, 255, 0.3);
+            background-color: rgba(99, 102, 241, 0.15);
+            color: #a5b4fc;
+            border: 1px solid rgba(99, 102, 241, 0.35);
         }
 
         .card-date {
@@ -844,101 +846,126 @@
             border-radius: 8px;
         }
 
-        /* Stats Chart Panel */
+        /* Stats & KPI Panel (Modern Slate & Indigo) */
         .stats-panel {
-            background-color: var(--panel-bg);
+            background: linear-gradient(180deg, #111827 0%, #0f172a 100%);
             border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 16px 20px;
+            border-radius: 14px;
+            padding: 20px 24px;
             margin-bottom: 24px;
-            transition: all 0.3s ease;
-        }
-
-        .stats-panel:not(.open) {
-            padding: 12px 20px;
+            box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.4);
         }
 
         .stats-header {
             display: flex;
             justify-content: space-between;
-            align-items: center;
+            align-items: flex-start;
+            margin-bottom: 18px;
+            flex-wrap: wrap;
+            gap: 16px;
         }
 
-        .stats-panel.open .stats-header {
-            margin-bottom: 16px;
-        }
-
-        .stats-panel:not(.open) .stats-header {
-            margin-bottom: 0;
-        }
-
-        .stats-title {
-            font-size: 0.95rem;
-            font-weight: 700;
-            color: var(--text-primary);
+        .kpi-block {
             display: flex;
-            align-items: center;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .kpi-value-row {
+            display: flex;
+            align-items: baseline;
             gap: 8px;
         }
 
-        .stats-summary {
-            font-size: 0.8rem;
-            color: var(--text-secondary);
+        .kpi-number {
+            font-size: 2.8rem;
+            font-weight: 800;
+            line-height: 1;
+            background: linear-gradient(135deg, #ffffff 0%, #c7d2fe 60%, #818cf8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-feature-settings: "tnum";
+            font-variant-numeric: tabular-nums;
+            letter-spacing: -0.03em;
         }
 
-        .stats-toggle {
-            display: none;
-            background-color: var(--bg-color);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            overflow: hidden;
+        .kpi-unit {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #94a3b8;
         }
 
-        .stats-panel.open .stats-toggle {
+        .kpi-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 3px 10px;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            background-color: rgba(99, 102, 241, 0.15);
+            color: #a5b4fc;
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            margin-left: 6px;
+            letter-spacing: 0.02em;
+        }
+
+        .kpi-subtext {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            letter-spacing: 0.01em;
+        }
+
+        .stats-controls {
             display: flex;
+            align-items: center;
         }
 
-        .stats-panel.open #stats-chevron {
-            transform: rotate(180deg);
+        .kpi-toggle-pill {
+            display: inline-flex;
+            background-color: rgba(15, 23, 42, 0.8);
+            border: 1px solid var(--border-color);
+            border-radius: 9999px;
+            padding: 3px;
+            gap: 2px;
         }
 
-        .stats-toggle-btn {
+        .kpi-pill-btn {
             background: none;
             border: none;
             color: var(--text-secondary);
-            padding: 6px 14px;
+            padding: 6px 16px;
             font-size: 0.8rem;
             font-weight: 600;
+            border-radius: 9999px;
             cursor: pointer;
             font-family: inherit;
-            transition: all 0.2s ease;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        .stats-toggle-btn.active {
-            background-color: var(--accent-color);
-            color: #050506;
-        }
-
-        .stats-toggle-btn:hover:not(.active) {
+        .kpi-pill-btn:hover:not(.active) {
             color: var(--text-primary);
-            background-color: var(--card-hover-bg);
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .kpi-pill-btn.active {
+            background-color: var(--accent-color);
+            color: #ffffff;
+            box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35);
         }
 
         .stats-content {
-            display: none;
-        }
-
-        .stats-panel.open .stats-content {
             display: block;
+            width: 100%;
         }
 
         .chart-wrapper {
             position: relative;
-            height: 200px;
+            height: 190px;
+            width: 100%;
         }
 
         .stats-empty {
-            height: 200px;
+            height: 190px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -1101,7 +1128,7 @@
                     <input type="text" id="search-input" placeholder="タイトル、著者、ジャンルで検索...">
                 </div>
                 <select class="sort-select" id="sort-select">
-                    <option value="added_desc">追加日が新しい順</option>
+                    <option value="added_desc" selected>追加日が新しい順</option>
                     <option value="added_asc">追加日が古い順</option>
                     <option value="read_desc">読了日が新しい順</option>
                     <option value="read_asc">読了日が古い順</option>
@@ -1126,23 +1153,26 @@
             </div>
         </div>
 
-        <!-- Stats Chart Panel (collapsible, open by default) -->
-        <div class="stats-panel open" id="stats-panel">
-            <div class="stats-header" id="stats-header" style="cursor:pointer; user-select:none;" title="クリックでグラフを表示 / 非表示">
-                <div>
-                    <div class="stats-title">📊 読了記録グラフ</div>
-                    <div class="stats-summary" id="stats-summary">読了した本のデータを集計中...</div>
-                </div>
-                <div style="display:flex; align-items:center; gap:12px;">
-                    <div class="stats-toggle" id="stats-toggle-buttons">
-                        <button class="stats-toggle-btn active" id="btn-chart-monthly">月別</button>
-                        <button class="stats-toggle-btn" id="btn-chart-yearly">年別</button>
+        <!-- Stats & KPI Panel (Always visible) -->
+        <div class="stats-panel" id="stats-panel">
+            <div class="stats-header">
+                <div class="kpi-block">
+                    <div class="kpi-value-row">
+                        <span class="kpi-number" id="kpi-count">0</span>
+                        <span class="kpi-unit">冊</span>
+                        <span class="kpi-badge" id="kpi-badge">2026年 読了</span>
                     </div>
-                    <span id="stats-chevron" style="font-size:0.75rem; color:var(--text-muted); transition:transform 0.3s ease; display:inline-block;">▼</span>
+                    <div class="kpi-subtext" id="kpi-subtext">読了データを集計中...</div>
+                </div>
+                <div class="stats-controls">
+                    <div class="kpi-toggle-pill">
+                        <button class="kpi-pill-btn active" id="btn-chart-yearly">年別 (Year)</button>
+                        <button class="kpi-pill-btn" id="btn-chart-monthly">月別 (Month)</button>
+                    </div>
                 </div>
             </div>
-            <div class="stats-content" id="stats-content">
-                <div id="chart-wrapper">
+            <div class="stats-content">
+                <div id="chart-wrapper" class="chart-wrapper">
                     <canvas id="reads-chart"></canvas>
                 </div>
             </div>
@@ -2305,17 +2335,7 @@
                 }
             });
 
-            // Stats Panel collapsible toggle
-            const statsHeader = document.getElementById('stats-header');
-            const statsPanel = document.getElementById('stats-panel');
-            if (statsHeader && statsPanel) {
-                statsHeader.addEventListener('click', () => {
-                    const isOpen = statsPanel.classList.toggle('open');
-                    if (isOpen) {
-                        renderChart();
-                    }
-                });
-            }
+
 
             document.getElementById('btn-save-settings').addEventListener('click', async () => {
                 const url = document.getElementById('gas-url').value.trim();
@@ -2456,26 +2476,51 @@
             });
         }
 
-        // --- Chart Rendering ---
+        // --- Chart & KPI Rendering ---
         let chartInstance = null;
-        let chartMode = 'monthly'; // 'monthly' or 'yearly'
+        let chartMode = 'yearly'; // 'yearly' (default) or 'monthly'
 
         function renderChart() {
+            const now = new Date();
+            const currentYear = now.getFullYear();
+            const currentMonth = now.getMonth() + 1;
+
             const readBooks = books.filter(b => b.status === 'read' && b.read_date);
             const totalRead = books.filter(b => b.status === 'read').length;
             const totalStock = books.filter(b => b.status === 'stock').length;
 
-            // Update summary text
-            document.getElementById('stats-summary').textContent =
-                `読了 ${totalRead} 冊 ／ 気になる ${totalStock} 冊 ／ 合計 ${books.length} 冊`;
+            // Calculate this year's and this month's reads
+            const yearReadCount = readBooks.filter(b => {
+                const d = new Date(b.read_date);
+                return !isNaN(d) && d.getFullYear() === currentYear;
+            }).length;
 
-            const statsPanel = document.getElementById('stats-panel');
-            const wrapper = document.getElementById('chart-wrapper');
+            const monthReadCount = readBooks.filter(b => {
+                const d = new Date(b.read_date);
+                return !isNaN(d) && d.getFullYear() === currentYear && (d.getMonth() + 1) === currentMonth;
+            }).length;
 
-            // 閉じた状態では描画をスキップして Chart.js の表示サイズエラーを防ぐ
-            if (statsPanel && !statsPanel.classList.contains('open')) {
-                return;
+            // Update KPI elements
+            const kpiCountEl = document.getElementById('kpi-count');
+            const kpiBadgeEl = document.getElementById('kpi-badge');
+            const kpiSubtextEl = document.getElementById('kpi-subtext');
+
+            if (kpiCountEl && kpiBadgeEl) {
+                if (chartMode === 'yearly') {
+                    kpiCountEl.textContent = yearReadCount;
+                    kpiBadgeEl.textContent = `${currentYear}年 読了`;
+                } else {
+                    kpiCountEl.textContent = monthReadCount;
+                    kpiBadgeEl.textContent = `${currentYear}年${currentMonth}月 読了`;
+                }
             }
+
+            if (kpiSubtextEl) {
+                kpiSubtextEl.textContent = `累計読了 ${totalRead} 冊 ／ 気になる ${totalStock} 冊 ／ 蔵書計 ${books.length} 冊`;
+            }
+
+            const wrapper = document.getElementById('chart-wrapper');
+            if (!wrapper) return;
 
             if (readBooks.length === 0) {
                 if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
@@ -2503,54 +2548,91 @@
             const labels = sortedKeys;
             const data = sortedKeys.map(k => counts[k]);
 
-            const ctx = document.getElementById('reads-chart').getContext('2d');
+            const canvas = document.getElementById('reads-chart');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
 
-            if (chartInstance) { chartInstance.destroy(); }
+            // Bar Label Plugin (Always show count above each bar)
+            const barLabelPlugin = {
+                id: 'barLabels',
+                afterDatasetsDraw(chart) {
+                    const { ctx } = chart;
+                    chart.data.datasets.forEach((dataset, i) => {
+                        const meta = chart.getDatasetMeta(i);
+                        meta.data.forEach((bar, index) => {
+                            const val = dataset.data[index];
+                            if (val > 0) {
+                                ctx.save();
+                                ctx.fillStyle = '#a5b4fc';
+                                ctx.font = '700 11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+                                ctx.textAlign = 'center';
+                                ctx.textBaseline = 'bottom';
+                                ctx.fillText(`${val}冊`, bar.x, bar.y - 4);
+                                ctx.restore();
+                            }
+                        });
+                    });
+                }
+            };
+
+            if (chartInstance) {
+                chartInstance.destroy();
+            }
 
             chartInstance = new Chart(ctx, {
                 type: 'bar',
+                plugins: [barLabelPlugin],
                 data: {
                     labels,
                     datasets: [{
                         label: '読了冊数',
                         data,
-                        backgroundColor: 'rgba(0, 240, 255, 0.25)',
-                        borderColor: 'rgba(0, 240, 255, 0.85)',
-                        borderWidth: 2,
+                        backgroundColor: 'rgba(99, 102, 241, 0.45)',
+                        borderColor: '#818cf8',
+                        borderWidth: 1.5,
                         borderRadius: 6,
                         borderSkipped: false,
+                        hoverBackgroundColor: 'rgba(129, 140, 248, 0.7)',
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    layout: {
+                        padding: {
+                            top: 20
+                        }
+                    },
                     plugins: {
                         legend: { display: false },
                         tooltip: {
-                            backgroundColor: '#111115',
-                            borderColor: '#262630',
+                            backgroundColor: '#0f172a',
+                            borderColor: '#374151',
                             borderWidth: 1,
-                            titleColor: '#f3f4f6',
-                            bodyColor: '#9ca3af',
+                            titleColor: '#f8fafc',
+                            bodyColor: '#cbd5e1',
+                            padding: 10,
+                            displayColors: false,
                             callbacks: {
-                                label: ctx => ` ${ctx.parsed.y} 冊`
+                                label: ctx => `読了: ${ctx.parsed.y} 冊`
                             }
                         }
                     },
                     scales: {
                         x: {
-                            grid: { color: 'rgba(255,255,255,0.05)' },
-                            ticks: { color: '#9ca3af', font: { size: 11 } }
+                            grid: { color: 'rgba(255, 255, 255, 0.04)' },
+                            ticks: { color: '#94a3b8', font: { size: 11, weight: '500' } }
                         },
                         y: {
-                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            grid: { color: 'rgba(255, 255, 255, 0.04)' },
                             ticks: {
-                                color: '#9ca3af',
+                                color: '#94a3b8',
                                 font: { size: 11 },
                                 stepSize: 1,
                                 precision: 0
                             },
-                            beginAtZero: true
+                            beginAtZero: true,
+                            suggestedMax: Math.max(...data, 1) + 2
                         }
                     }
                 }
@@ -2563,19 +2645,30 @@
             initSupabase();
             registerEventListeners();
 
-            // Chart toggle buttons
-            document.getElementById('btn-chart-monthly').addEventListener('click', () => {
-                chartMode = 'monthly';
-                document.getElementById('btn-chart-monthly').classList.add('active');
-                document.getElementById('btn-chart-yearly').classList.remove('active');
-                renderChart();
-            });
-            document.getElementById('btn-chart-yearly').addEventListener('click', () => {
-                chartMode = 'yearly';
-                document.getElementById('btn-chart-yearly').classList.add('active');
-                document.getElementById('btn-chart-monthly').classList.remove('active');
-                renderChart();
-            });
+            // Set default sort explicitly to added_desc
+            if (sortSelect) {
+                sortSelect.value = 'added_desc';
+            }
+
+            // KPI / Chart toggle buttons
+            const btnMonthly = document.getElementById('btn-chart-monthly');
+            const btnYearly = document.getElementById('btn-chart-yearly');
+
+            if (btnMonthly && btnYearly) {
+                btnMonthly.addEventListener('click', () => {
+                    chartMode = 'monthly';
+                    btnMonthly.classList.add('active');
+                    btnYearly.classList.remove('active');
+                    renderChart();
+                });
+
+                btnYearly.addEventListener('click', () => {
+                    chartMode = 'yearly';
+                    btnYearly.classList.add('active');
+                    btnMonthly.classList.remove('active');
+                    renderChart();
+                });
+            }
 
             renderBooks();
             renderGenreTags();
