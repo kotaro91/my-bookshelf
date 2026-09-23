@@ -1119,15 +1119,15 @@
                 <span class="tag-badge" data-filter="status" data-value="read">読了</span>
             </div>
 
-            <!-- Genre Tags (Generated dynamically) -->
-            <div class="tags-wrapper" id="genre-tags-container">
+            <!-- Genre Tags (Hidden as requested) -->
+            <div class="tags-wrapper" id="genre-tags-container" style="display: none;">
                 <span class="tags-label">ジャンル:</span>
                 <!-- JSで動的に追加される -->
             </div>
         </div>
 
-        <!-- Stats Chart Panel (collapsible, closed by default) -->
-        <div class="stats-panel" id="stats-panel">
+        <!-- Stats Chart Panel (collapsible, open by default) -->
+        <div class="stats-panel open" id="stats-panel">
             <div class="stats-header" id="stats-header" style="cursor:pointer; user-select:none;" title="クリックでグラフを表示 / 非表示">
                 <div>
                     <div class="stats-title">📊 読了記録グラフ</div>
