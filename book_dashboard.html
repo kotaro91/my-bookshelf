@@ -1383,6 +1383,32 @@
     <script>
         // --- State Management ---
         let books = [];
+        let supabaseClient = null;
+
+        function initSupabase() {
+            const url = localStorage.getItem('biblia_gas_url');
+            const key = localStorage.getItem('biblia_gas_password');
+            if (url && key && window.supabase) {
+                try {
+                    supabaseClient = window.supabase.createClient(url, key);
+                    subscribeRealtime();
+                } catch(e) {
+                    console.error("Supabase init error", e);
+                }
+            }
+        }
+
+        function subscribeRealtime() {
+            if (!supabaseClient) return;
+            supabaseClient
+                .channel('books_realtime')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'books' }, (payload) => {
+                    console.log('Realtime change received:', payload);
+                    pullFromCloud(true);
+                })
+                .subscribe();
+        }
+
         let activeFilters = {
             status: 'all',
             genre: 'all',
@@ -2056,21 +2082,26 @@
 
             if (!silent) setLoader(true, "Supabaseから読込中...");
             try {
-                const { data, error } = await supabaseClient
+                let res = await supabaseClient
                     .from('books')
                     .select('*')
-                    .order('created_at', { ascending: false });
+                    .order('added_date', { ascending: false });
 
-                if (!error && data) {
-                    books = data;
+                if (res.error) {
+                    // フォールバック: ソートなしで取得
+                    res = await supabaseClient.from('books').select('*');
+                }
+
+                if (!res.error && res.data) {
+                    books = res.data;
                     saveLocalData();
                     renderBooks();
                     renderGenreTags();
                     renderChart();
-                    if (!silent) showToast("最新データを読み込みました", 'success');
-                } else if (error) {
-                    console.error("Supabase pull error", error);
-                    if (!silent) showToast("取得失敗: " + error.message, 'error');
+                    if (!silent) showToast(`最新データ（${books.length}冊）を読み込みました`, 'success');
+                } else if (res.error) {
+                    console.error("Supabase pull error", res.error);
+                    if (!silent) showToast("取得失敗: " + res.error.message, 'error');
                 }
             } catch (e) {
                 console.error("Cloud pull failed", e);
@@ -2529,6 +2560,7 @@
         // --- App Entry Point ---
         window.addEventListener('DOMContentLoaded', async () => {
             loadLocalStorage();
+            initSupabase();
             registerEventListeners();
 
             // Chart toggle buttons
@@ -2549,7 +2581,7 @@
             renderGenreTags();
             renderChart();
 
-            if (syncSettings.url) {
+            if (syncSettings.url && syncSettings.password) {
                 await pullFromCloud();
                 renderChart();
             }
