@@ -918,6 +918,28 @@
         .stats-controls {
             display: flex;
             align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .chart-year-select {
+            background-color: rgba(15, 23, 42, 0.85);
+            color: #cbd5e1;
+            border: 1px solid var(--border-color);
+            border-radius: 9999px;
+            padding: 6px 14px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            outline: none;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .chart-year-select:hover {
+            border-color: #6366f1;
+            color: #ffffff;
+            background-color: rgba(30, 41, 59, 0.95);
         }
 
         .kpi-toggle-pill {
@@ -1160,14 +1182,18 @@
                     <div class="kpi-value-row">
                         <span class="kpi-number" id="kpi-count">0</span>
                         <span class="kpi-unit">冊</span>
-                        <span class="kpi-badge" id="kpi-badge">2026年 読了</span>
+                        <span class="kpi-badge" id="kpi-badge-total" style="background-color: rgba(99, 102, 241, 0.2); color: #c7d2fe; border-color: rgba(99, 102, 241, 0.4);">累計読了</span>
+                        <span class="kpi-badge" id="kpi-badge">2026年 読了: 0冊</span>
                     </div>
                     <div class="kpi-subtext" id="kpi-subtext">読了データを集計中...</div>
                 </div>
                 <div class="stats-controls">
+                    <select id="chart-year-select" class="chart-year-select" title="表示年を選択">
+                        <option value="all">全期間 (年別推移)</option>
+                    </select>
                     <div class="kpi-toggle-pill">
-                        <button class="kpi-pill-btn active" id="btn-chart-yearly">年別 (Year)</button>
-                        <button class="kpi-pill-btn" id="btn-chart-monthly">月別 (Month)</button>
+                        <button class="kpi-pill-btn" id="btn-chart-yearly">年別 (Year)</button>
+                        <button class="kpi-pill-btn active" id="btn-chart-monthly">月別 (Month)</button>
                     </div>
                 </div>
             </div>
@@ -2105,11 +2131,15 @@
                     });
                     saveLocalData();
 
-                    const { error } = await supabaseClient.from('books').upsert(books);
-                    if (error) {
-                        console.error("Supabase upsert error", error);
-                        showToast("同期失敗: " + error.message, 'error');
-                        return false;
+                    const batchSize = 100;
+                    for (let i = 0; i < books.length; i += batchSize) {
+                        const batch = books.slice(i, i + batchSize);
+                        const { error } = await supabaseClient.from('books').upsert(batch);
+                        if (error) {
+                            console.error("Supabase upsert error", error);
+                            showToast("同期失敗: " + error.message, 'error');
+                            return false;
+                        }
                     }
                 }
                 showToast("Supabaseと同期完了", 'success');
@@ -2131,26 +2161,52 @@
 
             if (!silent) setLoader(true, "Supabaseから読込中...");
             try {
-                let res = await supabaseClient
-                    .from('books')
-                    .select('*')
-                    .order('added_date', { ascending: false });
+                let allData = [];
+                let from = 0;
+                const pageSize = 1000;
+                let hasMore = true;
 
-                if (res.error) {
-                    // フォールバック: ソートなしで取得
-                    res = await supabaseClient.from('books').select('*');
+                while (hasMore) {
+                    const to = from + pageSize - 1;
+                    let res = await supabaseClient
+                        .from('books')
+                        .select('*')
+                        .order('added_date', { ascending: false })
+                        .range(from, to);
+
+                    if (res.error) {
+                        // フォールバック: ソートなしで range 取得
+                        res = await supabaseClient
+                            .from('books')
+                            .select('*')
+                            .range(from, to);
+                    }
+
+                    if (res.error) {
+                        console.error("Supabase pull error", res.error);
+                        if (!silent) showToast("取得失敗: " + res.error.message, 'error');
+                        break;
+                    }
+
+                    if (res.data && res.data.length > 0) {
+                        allData.push(...res.data);
+                        if (res.data.length < pageSize) {
+                            hasMore = false;
+                        } else {
+                            from += pageSize;
+                        }
+                    } else {
+                        hasMore = false;
+                    }
                 }
 
-                if (!res.error && res.data) {
-                    books = res.data;
+                if (allData.length > 0) {
+                    books = allData;
                     saveLocalData();
                     renderBooks();
                     renderGenreTags();
                     renderChart();
                     if (!silent) showToast(`最新データ（${books.length}冊）を読み込みました`, 'success');
-                } else if (res.error) {
-                    console.error("Supabase pull error", res.error);
-                    if (!silent) showToast("取得失敗: " + res.error.message, 'error');
                 }
             } catch (e) {
                 console.error("Cloud pull failed", e);
@@ -2500,26 +2556,71 @@
 
         // --- Chart & KPI Rendering ---
         let chartInstance = null;
-        let chartMode = 'yearly'; // 'yearly' (default) or 'monthly'
+        let chartMode = 'monthly'; // 'monthly' (default) or 'yearly'
+        let selectedYear = new Date().getFullYear(); // e.g. 2026
+
+        function updateToggleButtons() {
+            const btnMonthly = document.getElementById('btn-chart-monthly');
+            const btnYearly = document.getElementById('btn-chart-yearly');
+            if (chartMode === 'monthly') {
+                btnMonthly?.classList.add('active');
+                btnYearly?.classList.remove('active');
+            } else {
+                btnYearly?.classList.add('active');
+                btnMonthly?.classList.remove('active');
+            }
+        }
 
         function renderChart() {
             const now = new Date();
             const currentYear = now.getFullYear();
-            const currentMonth = now.getMonth() + 1;
 
             const readBooks = books.filter(b => b.status === 'read' && b.read_date);
             const totalRead = books.filter(b => b.status === 'read').length;
             const totalStock = books.filter(b => b.status === 'stock').length;
 
-            // Calculate this year's and this month's reads
-            const yearReadCount = readBooks.filter(b => {
+            // Extract all distinct years from read books
+            const yearSet = new Set();
+            readBooks.forEach(b => {
                 const d = new Date(b.read_date);
-                return !isNaN(d) && d.getFullYear() === currentYear;
-            }).length;
+                if (!isNaN(d)) yearSet.add(d.getFullYear());
+            });
+            yearSet.add(currentYear);
+            const availableYears = Array.from(yearSet).sort((a, b) => b - a); // descending
 
-            const monthReadCount = readBooks.filter(b => {
+            // Sync Year Selector dropdown options
+            const yearSelect = document.getElementById('chart-year-select');
+            if (yearSelect) {
+                const currentSelectVal = yearSelect.value;
+                yearSelect.innerHTML = '';
+
+                availableYears.forEach(y => {
+                    const opt = document.createElement('option');
+                    opt.value = y;
+                    opt.textContent = `${y}年`;
+                    yearSelect.appendChild(opt);
+                });
+
+                const allOpt = document.createElement('option');
+                allOpt.value = 'all';
+                allOpt.textContent = '全期間 (年別推移)';
+                yearSelect.appendChild(allOpt);
+
+                if (chartMode === 'yearly' || selectedYear === 'all') {
+                    yearSelect.value = 'all';
+                } else if (availableYears.includes(parseInt(selectedYear))) {
+                    yearSelect.value = selectedYear;
+                } else if (availableYears.length > 0) {
+                    selectedYear = availableYears[0];
+                    yearSelect.value = selectedYear;
+                }
+            }
+
+            // Calculate selected year read count
+            const activeYear = (selectedYear === 'all') ? currentYear : parseInt(selectedYear);
+            const selectedYearReads = readBooks.filter(b => {
                 const d = new Date(b.read_date);
-                return !isNaN(d) && d.getFullYear() === currentYear && (d.getMonth() + 1) === currentMonth;
+                return !isNaN(d) && d.getFullYear() === activeYear;
             }).length;
 
             // Update KPI elements
@@ -2527,18 +2628,21 @@
             const kpiBadgeEl = document.getElementById('kpi-badge');
             const kpiSubtextEl = document.getElementById('kpi-subtext');
 
-            if (kpiCountEl && kpiBadgeEl) {
-                if (chartMode === 'yearly') {
-                    kpiCountEl.textContent = yearReadCount;
-                    kpiBadgeEl.textContent = `${currentYear}年 読了`;
+            if (kpiCountEl) {
+                // 読了の合計件数が見えるようにメイン数字に「累計読了数」を表示
+                kpiCountEl.textContent = totalRead.toLocaleString();
+            }
+
+            if (kpiBadgeEl) {
+                if (chartMode === 'yearly' || selectedYear === 'all') {
+                    kpiBadgeEl.textContent = `全期間 読了推移`;
                 } else {
-                    kpiCountEl.textContent = monthReadCount;
-                    kpiBadgeEl.textContent = `${currentYear}年${currentMonth}月 読了`;
+                    kpiBadgeEl.textContent = `${activeYear}年 読了: ${selectedYearReads}冊`;
                 }
             }
 
             if (kpiSubtextEl) {
-                kpiSubtextEl.textContent = `累計読了 ${totalRead} 冊 ／ 気になる ${totalStock} 冊 ／ 蔵書計 ${books.length} 冊`;
+                kpiSubtextEl.textContent = `累計読了 ${totalRead.toLocaleString()} 冊 ／ 気になる ${totalStock.toLocaleString()} 冊 ／ 蔵書計 ${books.length.toLocaleString()} 冊`;
             }
 
             const wrapper = document.getElementById('chart-wrapper');
@@ -2555,20 +2659,35 @@
                 wrapper.innerHTML = '<canvas id="reads-chart"></canvas>';
             }
 
-            // Build dataset
-            const counts = {};
-            readBooks.forEach(b => {
-                const d = new Date(b.read_date);
-                if (isNaN(d)) return;
-                const key = chartMode === 'monthly'
-                    ? `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}`
-                    : `${d.getFullYear()}`;
-                counts[key] = (counts[key] || 0) + 1;
-            });
+            let labels = [];
+            let data = [];
 
-            const sortedKeys = Object.keys(counts).sort();
-            const labels = sortedKeys;
-            const data = sortedKeys.map(k => counts[k]);
+            if (chartMode === 'yearly' || selectedYear === 'all') {
+                // All-time yearly bars (sorted ascending by year)
+                const yearlyCounts = {};
+                readBooks.forEach(b => {
+                    const d = new Date(b.read_date);
+                    if (!isNaN(d)) {
+                        const y = d.getFullYear();
+                        yearlyCounts[y] = (yearlyCounts[y] || 0) + 1;
+                    }
+                });
+                const sortedYears = Object.keys(yearlyCounts).map(Number).sort((a, b) => a - b);
+                labels = sortedYears.map(y => `${y}年`);
+                data = sortedYears.map(y => yearlyCounts[y]);
+            } else {
+                // Monthly view for activeYear (1月〜12月)
+                const monthlyCounts = Array(12).fill(0);
+                readBooks.forEach(b => {
+                    const d = new Date(b.read_date);
+                    if (!isNaN(d) && d.getFullYear() === activeYear) {
+                        const m = d.getMonth(); // 0-11
+                        monthlyCounts[m]++;
+                    }
+                });
+                labels = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
+                data = monthlyCounts;
+            }
 
             const canvas = document.getElementById('reads-chart');
             if (!canvas) return;
@@ -2620,6 +2739,20 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    onClick: (event, elements) => {
+                        // 年別推移の棒をクリックしたら、その年の月別表示にズームイン
+                        if (elements && elements.length > 0 && (chartMode === 'yearly' || selectedYear === 'all')) {
+                            const index = elements[0].index;
+                            const clickedLabel = labels[index];
+                            const yearNum = parseInt(clickedLabel);
+                            if (yearNum) {
+                                selectedYear = yearNum;
+                                chartMode = 'monthly';
+                                updateToggleButtons();
+                                renderChart();
+                            }
+                        }
+                    },
                     layout: {
                         padding: {
                             top: 20
@@ -2672,22 +2805,40 @@
                 sortSelect.value = 'added_desc';
             }
 
-            // KPI / Chart toggle buttons
+            // KPI / Chart controls
             const btnMonthly = document.getElementById('btn-chart-monthly');
             const btnYearly = document.getElementById('btn-chart-yearly');
+            const yearSelect = document.getElementById('chart-year-select');
+
+            if (yearSelect) {
+                yearSelect.addEventListener('change', (e) => {
+                    const val = e.target.value;
+                    if (val === 'all') {
+                        chartMode = 'yearly';
+                        selectedYear = 'all';
+                    } else {
+                        chartMode = 'monthly';
+                        selectedYear = parseInt(val);
+                    }
+                    updateToggleButtons();
+                    renderChart();
+                });
+            }
 
             if (btnMonthly && btnYearly) {
                 btnMonthly.addEventListener('click', () => {
                     chartMode = 'monthly';
-                    btnMonthly.classList.add('active');
-                    btnYearly.classList.remove('active');
+                    if (selectedYear === 'all') {
+                        selectedYear = new Date().getFullYear();
+                    }
+                    updateToggleButtons();
                     renderChart();
                 });
 
                 btnYearly.addEventListener('click', () => {
                     chartMode = 'yearly';
-                    btnYearly.classList.add('active');
-                    btnMonthly.classList.remove('active');
+                    selectedYear = 'all';
+                    updateToggleButtons();
                     renderChart();
                 });
             }
