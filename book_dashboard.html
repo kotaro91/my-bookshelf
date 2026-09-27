@@ -1905,17 +1905,54 @@
                 return true;
             });
 
+            // カード右下に印字される日付文字列（YYYY-MM-DD）を取得・正規化
+            function getCardDateString(b) {
+                const raw = (b.status === 'read' ? b.read_date : b.added_date) || b.added_date || b.read_date || '';
+                if (!raw) return '';
+                const str = String(raw).trim();
+                const match = str.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+                if (match) {
+                    const y = match[1];
+                    const m = match[2].padStart(2, '0');
+                    const d = match[3].padStart(2, '0');
+                    return `${y}-${m}-${d}`;
+                }
+                return str.slice(0, 10);
+            }
+
             // Sort
             const sortVal = sortSelect.value;
             filteredBooks.sort((x, y) => {
                 if (sortVal === 'added_desc') {
-                    return new Date(y.added_date || 0) - new Date(x.added_date || 0);
+                    const dateY = getCardDateString(y);
+                    const dateX = getCardDateString(x);
+                    if (dateY !== dateX) {
+                        return dateY.localeCompare(dateX) * -1; // カードに印字される日付の新しい順
+                    }
+                    const timeY = new Date(y.created_at || 0).getTime();
+                    const timeX = new Date(x.created_at || 0).getTime();
+                    if (timeY !== timeX) return timeY - timeX;
+                    return (y.id || '').localeCompare(x.id || '');
                 } else if (sortVal === 'added_asc') {
-                    return new Date(x.added_date || 0) - new Date(y.added_date || 0);
+                    const dateY = getCardDateString(y);
+                    const dateX = getCardDateString(x);
+                    if (dateY !== dateX) {
+                        return dateY.localeCompare(dateX); // カードに印字される日付の古い順
+                    }
+                    const timeY = new Date(y.created_at || 0).getTime();
+                    const timeX = new Date(x.created_at || 0).getTime();
+                    if (timeY !== timeX) return timeX - timeY;
+                    return (x.id || '').localeCompare(y.id || '');
                 } else if (sortVal === 'read_desc') {
-                    return new Date(y.read_date || 0) - new Date(x.read_date || 0);
+                    const dateY = (y.read_date || '').slice(0, 10);
+                    const dateX = (x.read_date || '').slice(0, 10);
+                    if (dateY !== dateX) return dateY.localeCompare(dateX) * -1;
+                    return (y.id || '').localeCompare(x.id || '');
                 } else if (sortVal === 'read_asc') {
-                    return new Date(x.read_date || 0) - new Date(y.read_date || 0);
+                    const dateY = (y.read_date || '').slice(0, 10);
+                    const dateX = (x.read_date || '').slice(0, 10);
+                    if (dateY !== dateX) return dateY.localeCompare(dateX);
+                    return (x.id || '').localeCompare(y.id || '');
                 } else if (sortVal === 'title_asc') {
                     return (x.title || '').localeCompare(y.title || '', 'ja');
                 } else if (sortVal === 'rating_desc') {
@@ -1958,7 +1995,7 @@
                 `;
 
                 const statusLabel = b.status === 'read' ? '読了' : '気になる';
-                const statusDate = b.status === 'read' ? (b.read_date || '') : (b.added_date || '');
+                const statusDate = getCardDateString(b);
 
                 const authorName = b.author || '著者不明';
                 const displayAuthor = b.author 
@@ -2201,7 +2238,17 @@
                 }
 
                 if (allData.length > 0) {
-                    books = allData;
+                    // クラウドデータとローカルデータをIDで安全にマージ（ローカルの新着書籍の消失を防止）
+                    const cloudMap = new Map(allData.map(b => [b.id, b]));
+                    const merged = [...allData];
+                    if (Array.isArray(books)) {
+                        books.forEach(localBook => {
+                            if (localBook && localBook.id && !cloudMap.has(localBook.id)) {
+                                merged.push(localBook);
+                            }
+                        });
+                    }
+                    books = merged;
                     saveLocalData();
                     renderBooks();
                     renderGenreTags();
@@ -2239,14 +2286,12 @@
 
             books.push(newBook);
             saveLocalData();
+            closeAddModal();
+            renderBooks();
+            renderGenreTags();
+            renderChart();
             
-            const syncSuccess = await syncToCloud();
-            if (syncSuccess) {
-                closeAddModal();
-                renderBooks();
-                renderGenreTags();
-                renderChart();
-            }
+            await syncToCloud();
         }
 
         // Trigger updates
@@ -2277,13 +2322,12 @@
             };
 
             saveLocalData();
-            const syncSuccess = await syncToCloud();
-            if (syncSuccess) {
-                closeEditModal();
-                renderBooks();
-                renderGenreTags();
-                renderChart();
-            }
+            closeEditModal();
+            renderBooks();
+            renderGenreTags();
+            renderChart();
+            
+            await syncToCloud();
         }
 
         // Trigger deletions
@@ -2335,10 +2379,12 @@
                         if (confirm(`バックアップデータから ${importedBooks.length} 冊を復元しますか？（現在のデータは上書きされます）`)) {
                             books = importedBooks;
                             saveLocalData();
-                            await syncToCloud();
+                            if (sortSelect) sortSelect.value = 'added_desc';
                             renderBooks();
                             renderGenreTags();
+                            renderChart();
                             showToast("データを復元しました", 'success');
+                            await syncToCloud();
                         }
                     } else {
                         showToast("無効なJSONフォーマットです", 'error');
