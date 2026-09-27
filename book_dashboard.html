@@ -1927,7 +1927,7 @@
                     const dateY = getCardDateString(y);
                     const dateX = getCardDateString(x);
                     if (dateY !== dateX) {
-                        return dateY.localeCompare(dateX) * -1; // カードに印字される日付の新しい順
+                        return dateY.localeCompare(dateX); // 新しい日付（大きい文字列）が先頭
                     }
                     const timeY = new Date(y.created_at || 0).getTime();
                     const timeX = new Date(x.created_at || 0).getTime();
@@ -1937,7 +1937,7 @@
                     const dateY = getCardDateString(y);
                     const dateX = getCardDateString(x);
                     if (dateY !== dateX) {
-                        return dateY.localeCompare(dateX); // カードに印字される日付の古い順
+                        return dateX.localeCompare(dateY); // 古い日付（小さい文字列）が先頭
                     }
                     const timeY = new Date(y.created_at || 0).getTime();
                     const timeX = new Date(x.created_at || 0).getTime();
@@ -1946,12 +1946,12 @@
                 } else if (sortVal === 'read_desc') {
                     const dateY = (y.read_date || '').slice(0, 10);
                     const dateX = (x.read_date || '').slice(0, 10);
-                    if (dateY !== dateX) return dateY.localeCompare(dateX) * -1;
+                    if (dateY !== dateX) return dateY.localeCompare(dateX); // 読了日が新しい順
                     return (y.id || '').localeCompare(x.id || '');
                 } else if (sortVal === 'read_asc') {
                     const dateY = (y.read_date || '').slice(0, 10);
                     const dateX = (x.read_date || '').slice(0, 10);
-                    if (dateY !== dateX) return dateY.localeCompare(dateX);
+                    if (dateY !== dateX) return dateX.localeCompare(dateY); // 読了日が古い順
                     return (x.id || '').localeCompare(y.id || '');
                 } else if (sortVal === 'title_asc') {
                     return (x.title || '').localeCompare(y.title || '', 'ja');
@@ -2350,6 +2350,175 @@
             }
         }
 
+        // --- Inject Today 10 Books Directly ---
+        function injectToday10Books() {
+            const today10 = [
+                {
+                    "id": "book_read_gutai01",
+                    "title": "「具体⇄抽象」トレーニング 思考力が飛躍的にアップする29問",
+                    "author": "細谷 功",
+                    "publisher": "PHP研究所",
+                    "isbn": "9784569845876",
+                    "cover": "https://cover.openbd.jp/9784569845876.jpg",
+                    "status": "read",
+                    "read_date": "",
+                    "rating": 0,
+                    "review": "",
+                    "genre": "ビジネス・教養",
+                    "added_date": "2026-09-27",
+                    "created_at": "2026-09-27T11:50:00.000Z"
+                },
+                {
+                    "id": "book_read_biishiki02",
+                    "title": "世界のエリートはなぜ「美意識」を鍛えるのか? 経営における「直感」の重要性",
+                    "author": "山口 周",
+                    "publisher": "光文社",
+                    "isbn": "9784334039967",
+                    "cover": "https://cover.openbd.jp/9784334039967.jpg",
+                    "status": "read",
+                    "read_date": "",
+                    "rating": 0,
+                    "review": "",
+                    "genre": "ビジネス・教養",
+                    "added_date": "2026-09-27",
+                    "created_at": "2026-09-27T11:50:00.000Z"
+                },
+                {
+                    "id": "book_read_shikou03",
+                    "title": "思考の整理学",
+                    "author": "外山 滋比古",
+                    "publisher": "筑摩書房",
+                    "isbn": "9784480020475",
+                    "cover": "https://cover.openbd.jp/9784480020475.jpg",
+                    "status": "read",
+                    "read_date": "",
+                    "rating": 0,
+                    "review": "",
+                    "genre": "ビジネス・教養",
+                    "added_date": "2026-09-27",
+                    "created_at": "2026-09-27T11:50:00.000Z"
+                },
+                {
+                    "id": "book_stock_fukugan04",
+                    "title": "知的複眼思考法 誰でも持っている創造力のスイッチ",
+                    "author": "苅谷 剛彦",
+                    "publisher": "講談社",
+                    "isbn": "9784062923583",
+                    "cover": "https://cover.openbd.jp/9784062923583.jpg",
+                    "status": "stock",
+                    "read_date": "",
+                    "rating": 0,
+                    "review": "",
+                    "genre": "ビジネス・教養",
+                    "added_date": "2026-09-27",
+                    "created_at": "2026-09-27T11:50:00.000Z"
+                },
+                {
+                    "id": "book_stock_gengo05",
+                    "title": "言語の本質 - ことばのごちそう",
+                    "author": "今井 むつみ / 秋田 喜美",
+                    "publisher": "中公新書",
+                    "isbn": "9784121027566",
+                    "cover": "https://cover.openbd.jp/9784121027566.jpg",
+                    "status": "stock",
+                    "read_date": "",
+                    "rating": 0,
+                    "review": "",
+                    "genre": "ビジネス・教養",
+                    "added_date": "2026-09-27",
+                    "created_at": "2026-09-27T11:50:00.000Z"
+                },
+                {
+                    "id": "book_stock_wakete06",
+                    "title": "世界は分けてもわからない",
+                    "author": "福岡 伸一",
+                    "publisher": "講談社",
+                    "isbn": "9784062880084",
+                    "cover": "https://cover.openbd.jp/9784062880084.jpg",
+                    "status": "stock",
+                    "read_date": "",
+                    "rating": 0,
+                    "review": "",
+                    "genre": "ビジネス・教養",
+                    "added_date": "2026-09-27",
+                    "created_at": "2026-09-27T11:50:00.000Z"
+                },
+                {
+                    "id": "book_stock_cake07",
+                    "title": "ケーキの切れない非行少年たち",
+                    "author": "宮口 幸治",
+                    "publisher": "新潮社",
+                    "isbn": "9784106108204",
+                    "cover": "https://cover.openbd.jp/9784106108204.jpg",
+                    "status": "stock",
+                    "read_date": "",
+                    "rating": 0,
+                    "review": "",
+                    "genre": "ビジネス・教養",
+                    "added_date": "2026-09-27",
+                    "created_at": "2026-09-27T11:50:00.000Z"
+                },
+                {
+                    "id": "book_stock_bokko08",
+                    "title": "ボッコちゃん",
+                    "author": "星 新一",
+                    "publisher": "新潮社",
+                    "isbn": "9784101098012",
+                    "cover": "https://cover.openbd.jp/9784101098012.jpg",
+                    "status": "stock",
+                    "read_date": "",
+                    "rating": 0,
+                    "review": "",
+                    "genre": "文芸・小説",
+                    "added_date": "2026-09-27",
+                    "created_at": "2026-09-27T11:50:00.000Z"
+                },
+                {
+                    "id": "book_stock_tosho09",
+                    "title": "お探し物は図書室まで",
+                    "author": "青山 美智子",
+                    "publisher": "ポプラ社",
+                    "isbn": "9784591167984",
+                    "cover": "https://cover.openbd.jp/9784591167984.jpg",
+                    "status": "stock",
+                    "read_date": "",
+                    "rating": 0,
+                    "review": "",
+                    "genre": "文芸・小説",
+                    "added_date": "2026-09-27",
+                    "created_at": "2026-09-27T11:50:00.000Z"
+                },
+                {
+                    "id": "book_stock_chokkan10",
+                    "title": "直感と論理をつなぐ思考法 VISION DRIVEN",
+                    "author": "佐宗 邦威",
+                    "publisher": "ダイヤモンド社",
+                    "isbn": "9784478107140",
+                    "cover": "https://cover.openbd.jp/9784478107140.jpg",
+                    "status": "stock",
+                    "read_date": "",
+                    "rating": 0,
+                    "review": "",
+                    "genre": "ビジネス・教養",
+                    "added_date": "2026-09-27",
+                    "created_at": "2026-09-27T11:50:00.000Z"
+                }
+            ];
+
+            const targetIds = new Set(today10.map(b => b.id));
+            if (!Array.isArray(books)) books = [];
+            books = books.filter(b => b && b.id && !targetIds.has(b.id));
+            books.unshift(...today10);
+
+            saveLocalData();
+            if (sortSelect) sortSelect.value = 'added_desc';
+            renderBooks();
+            renderGenreTags();
+            renderChart();
+            showToast("✨ 本日の10冊（既読3冊・気になる7冊）を反映しました！", 'success');
+            syncToCloud();
+        }
+
         // --- JSON Backup / Restore Logic ---
         function exportToJson() {
             const dataStr = JSON.stringify(books, null, 2);
@@ -2515,6 +2684,12 @@
             document.getElementById('btn-export-json').addEventListener('click', exportToJson);
             document.getElementById('btn-import-json').addEventListener('click', triggerImportJson);
             document.getElementById('file-import').addEventListener('change', handleImportJson);
+
+            // Inject Today 10 Books actions
+            const btnInject = document.getElementById('btn-inject-today-10');
+            if (btnInject) btnInject.addEventListener('click', injectToday10Books);
+            const btnInjectSettings = document.getElementById('btn-inject-today-10-settings');
+            if (btnInjectSettings) btnInjectSettings.addEventListener('click', injectToday10Books);
 
             // Add modal actions
             document.getElementById('btn-open-add').addEventListener('click', openAddModal);
