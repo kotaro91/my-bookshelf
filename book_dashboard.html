@@ -1544,6 +1544,17 @@
             if (localBooks) {
                 try {
                     books = JSON.parse(localBooks);
+                    const nowIso = new Date().toISOString();
+                    let updated = false;
+                    books.forEach(b => {
+                        if (!b.created_at) {
+                            b.created_at = nowIso;
+                            updated = true;
+                        }
+                    });
+                    if (updated) {
+                        saveLocalData();
+                    }
                 } catch (e) {
                     console.error("Local data parsing error, resetting.", e);
                     books = [];
@@ -2086,6 +2097,14 @@
 
             try {
                 if (books.length > 0) {
+                    const nowIso = new Date().toISOString();
+                    books.forEach(b => {
+                        if (!b.created_at) {
+                            b.created_at = nowIso;
+                        }
+                    });
+                    saveLocalData();
+
                     const { error } = await supabaseClient.from('books').upsert(books);
                     if (error) {
                         console.error("Supabase upsert error", error);
@@ -2158,7 +2177,8 @@
                 status: isRead ? 'read' : 'stock',
                 added_date: bookAddedDate.value || getLocalDateString(),
                 read_date: isRead ? bookReadDate.value : '',
-                rating: isRead ? (parseInt(document.getElementById('book-rating').value) || 0) : 0
+                rating: isRead ? (parseInt(document.getElementById('book-rating').value) || 0) : 0,
+                created_at: new Date().toISOString()
             };
 
             books.push(newBook);
@@ -2186,6 +2206,7 @@
             }
 
             const isRead = editBookStatus.checked;
+            const existingBook = books[bIndex];
             books[bIndex] = {
                 id: id,
                 title: title,
@@ -2195,7 +2216,8 @@
                 status: isRead ? 'read' : 'stock',
                 added_date: editBookAddedDate.value || getLocalDateString(),
                 read_date: isRead ? editBookReadDate.value : '',
-                rating: isRead ? (parseInt(document.getElementById('edit-book-rating').value) || 0) : 0
+                rating: isRead ? (parseInt(document.getElementById('edit-book-rating').value) || 0) : 0,
+                created_at: (existingBook && existingBook.created_at) ? existingBook.created_at : new Date().toISOString()
             };
 
             saveLocalData();
